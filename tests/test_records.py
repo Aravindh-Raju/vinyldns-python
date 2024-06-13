@@ -15,7 +15,7 @@
 import copy
 
 import responses
-from sampledata import record_sets, record_set_values, gen_rs_change, forward_zone
+from sampledata import record_sets, record_set_values, gen_rs_change, forward_zone, sample_A_recordset
 from vinyldns.record import RecordSet, RecordSetChange, ListRecordSetsResponse, ListRecordSetChangesResponse
 from vinyldns.serdes import to_json_string, from_json_string
 
@@ -148,17 +148,55 @@ def test_get_record_set_change(record_set, mocked_responses, vinyldns_client):
 
 def test_list_record_set_changes(mocked_responses, vinyldns_client):
     changes = [gen_rs_change(c) for c in record_set_values]
-    lrscr = ListRecordSetChangesResponse(forward_zone.id, changes, 'next', 'start', 100)
+    lrscr = ListRecordSetChangesResponse(forward_zone.id, changes, 1, 3, 100)
     mocked_responses.add(responses.GET,
-                         'http://test.com/zones/{0}/recordsetchanges?startFrom=start&maxItems=100'.format(
+                         'http://test.com/zones/{0}/recordsetchanges?startFrom=1&maxItems=100'.format(
                              forward_zone.id), body=to_json_string(lrscr), status=200)
-    r = vinyldns_client.list_record_set_changes(forward_zone.id, 'start', 100)
+    r = vinyldns_client.list_record_set_changes(forward_zone.id, 1, 100)
     r.start_from = lrscr.start_from
     r.next_id = lrscr.next_id
     r.max_items = lrscr.max_items
     r.zone_id = lrscr.zone_id
     for l, r in zip(r.record_set_changes, lrscr.record_set_changes):
         check_record_set_changes_are_equal(l, r)
+
+def test_list_record_set_change_history(mocked_responses, vinyldns_client):
+    #change 1
+    rs = copy.deepcopy(sample_A_recordset)
+    rs.id = rs.name + 'id'
+    change = gen_rs_change(rs)
+    mocked_responses.add(
+        responses.PUT, 'http://test.com/zones/{0}/recordsets/{1}'.format(rs.zone_id, rs.id),
+        body=to_json_string(change), status=200
+    )
+    r = vinyldns_client.update_record_set(rs)
+    check_record_set_changes_are_equal(change, r)
+
+    #change 2
+    rs_2 = copy.deepcopy(sample_A_recordset)
+    rs_2.name = rs.name + 'id-2'
+    change_2 = gen_rs_change(rs_2)
+    mocked_responses.add(
+        responses.PUT, 'http://test.com/zones/{0}/recordsets/{1}'.format(rs_2.zone_id, rs_2.id),
+        body=to_json_string(change_2), status=200
+    )
+    r_2 = vinyldns_client.update_record_set(rs_2)
+    check_record_set_changes_are_equal(change_2, r_2)
+
+    changes = [change, change_2]
+    lrscr = ListRecordSetChangesResponse(forward_zone.id, changes, 1, 3, 100)
+    mocked_responses.add(responses.GET,
+                         'http://test.com/recordsetchange/history?fqdn=a-testid-2.bar.&zoneId=foo&record_type=A&startFrom=1&maxItems=100', 
+                            body=to_json_string(lrscr), status=200)
+    rc = vinyldns_client.list_record_set_change_history(forward_zone.id, "a-testid-2.bar.", "A", 1, 100)
+    print("rc: ", rc)
+    rc.start_from = lrscr.start_from
+    rc.next_id = lrscr.next_id
+    rc.max_items = lrscr.max_items
+    rc.zone_id = lrscr.zone_id
+    for l, r in zip(rc.record_set_changes, lrscr.record_set_changes):
+        check_record_set_changes_are_equal(l, r) 
+    mocked_responses.reset()
 
 
 def test_record_set_serdes(record_set):

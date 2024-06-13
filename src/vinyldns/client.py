@@ -617,10 +617,10 @@ class VinylDNSClient(object):
         """
         Get the record_set changes for the given zone id.
 
-        :param zone_id: the id of the zone to retrieve
+        :param zone_id: the id of the zone to which the record belongs
         :param start_from: the start key of the page
         :param max_items: the page limit
-        :return: the zone, or will 404 if not found
+        :return: the content of the response
         """
         args = []
         if start_from:
@@ -628,6 +628,30 @@ class VinylDNSClient(object):
         if max_items is not None:
             args.append(u'maxItems={0}'.format(max_items))
         url = urljoin(self.index_url, u'/zones/{0}/recordsetchanges'.format(zone_id)) + u'?' + u'&'.join(args)
+
+        response, data = self.__make_request(url, u'GET', self.headers, **kwargs)
+        return ListRecordSetChangesResponse.from_dict(data)
+    
+    def list_record_set_change_history(self, zone_id, fqdn, record_type, start_from=None, max_items=None, **kwargs):
+        """
+        Get the record_set changes for the given zone id.
+
+        :param zone_id: the id of the zone to which the record belongs
+        :param fqdn: the fqdn of the record to retrieve the change history
+        :param record_type: the record_type of the record to retrieve the change history
+        :param start_from: the start key of the page
+        :param max_items: the page limit
+        :return: the content of the response
+        """
+        args = []
+        args.append(u'fqdn={0}'.format(fqdn))
+        args.append(u'zoneId={0}'.format(zone_id))
+        args.append(u'recordType={0}'.format(record_type))
+        if start_from:
+            args.append(u'startFrom={0}'.format(start_from))
+        if max_items is not None:
+            args.append(u'maxItems={0}'.format(max_items))
+        url = urljoin(self.index_url, u'/recordsetchange/history') + u'?' + u'&'.join(args)
 
         response, data = self.__make_request(url, u'GET', self.headers, **kwargs)
         return ListRecordSetChangesResponse.from_dict(data)

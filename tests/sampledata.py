@@ -61,6 +61,9 @@ record_sets = {
 
 record_set_values = record_sets.values()
 
+sample_A_recordset = RecordSet(forward_zone.id, 'a-test', RecordType.A, 200, records=[AData('1.2.3.4')],
+                            owner_group_id='owner-group-id')
+
 sample_user = User('id', 'test200', 'Bobby', 'Bonilla', 'bob@bob.com', datetime.utcnow())
 sample_group = Group('ok', 'test@test.com', 'description', datetime.utcnow(), members=[sample_user],
                      admins=[sample_user], id='sample-group')
